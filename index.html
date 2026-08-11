@@ -58,6 +58,7 @@
   }
   #legend .lg-row { display: flex; align-items: center; gap: 6px; }
   #legend svg { flex: none; }
+  #legend .lg-pin { display: inline-flex; }
 
   /* 현재위치 버튼 */
   #locBtn {
@@ -141,8 +142,8 @@
 
 <div id="countBadge">0곳</div>
 <div id="legend">
-  <div class="lg-row"><svg width="15" height="19" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.1 1 16.8 1 28.9 17 43 17 43s16-14.1 16-26.2C33 8.1 25.8 1 17 1z" fill="#2563eb" stroke="#fff" stroke-width="2"/><circle cx="17" cy="16.5" r="8.5" fill="#fff"/><path d="M12.5 16.8l3.2 3.2 6-6.5" fill="none" stroke="#2563eb" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg> 가봄</div>
-  <div class="lg-row"><svg width="15" height="19" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.1 1 16.8 1 28.9 17 43 17 43s16-14.1 16-26.2C33 8.1 25.8 1 17 1z" fill="#ff6b35" stroke="#fff" stroke-width="2"/><circle cx="17" cy="16.5" r="8.5" fill="#fff"/><circle cx="17" cy="16.5" r="4" fill="none" stroke="#ff6b35" stroke-width="2.5"/></svg> 안가봄</div>
+  <div class="lg-row"><span class="lg-pin" data-visited="1"></span> 가봄</div>
+  <div class="lg-row"><span class="lg-pin" data-visited="0"></span> 안가봄</div>
 </div>
 <button id="locBtn" title="현재 위치">🧭</button>
 <button id="listBtn" title="목록">☰</button>
@@ -373,20 +374,38 @@ function openList() {
   document.getElementById('listSheet').classList.add('open');
 }
 
-function markerImage(visited) {
-  const color = visited ? '#2563eb' : '#ff6b35';
-  const inner = visited
-    ? `<circle cx="17" cy="16.5" r="8.5" fill="#fff"/>
-       <path d="M12.5 16.8l3.2 3.2 6-6.5" fill="none" stroke="${color}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`
-    : `<circle cx="17" cy="16.5" r="8.5" fill="#fff"/>
-       <circle cx="17" cy="16.5" r="4" fill="none" stroke="${color}" stroke-width="2.5"/>`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
-    <path d="M17 1C8.2 1 1 8.1 1 16.8 1 28.9 17 43 17 43s16-14.1 16-26.2C33 8.1 25.8 1 17 1z" fill="${color}" stroke="#fff" stroke-width="2"/>
-    ${inner}</svg>`;
-  return new kakao.maps.MarkerImage(
-    'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
-    new kakao.maps.Size(34, 44), { offset: new kakao.maps.Point(17, 43) });
+function pinSvg(visited, w, h) {
+  const [c1, c2] = visited ? ['#5b9dff', '#1d4ed8'] : ['#ffb35c', '#f4511e'];
+  const badge = visited
+    ? `<circle cx="34.5" cy="8" r="6.3" fill="#22c55e" stroke="#fff" stroke-width="1.8"/>
+       <path d="M31.7 8l2 2 3.6-3.9" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+    : `<circle cx="34.5" cy="8" r="6.3" fill="#fff" stroke="${c2}" stroke-width="1.8"/>
+       <path d="M32.3 5.2h4.4v5.8l-2.2-1.7-2.2 1.7z" fill="${c2}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 44 54">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/>
+      </linearGradient>
+      <filter id="s" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.1"/></filter>
+    </defs>
+    <ellipse cx="22" cy="49.3" rx="7.5" ry="2.7" fill="#000" opacity=".3" filter="url(#s)"/>
+    <path d="M22 2C12.6 2 5 9.6 5 19c0 12.6 17 29 17 29s17-16.4 17-29C39 9.6 31.4 2 22 2z" fill="url(#g)" stroke="#fff" stroke-width="2.2"/>
+    <ellipse cx="16.5" cy="10" rx="6.5" ry="4" fill="#fff" opacity=".22" transform="rotate(-20 16.5 10)"/>
+    <circle cx="22" cy="19" r="10.3" fill="#fff"/>
+    <path d="M17.6 13v3.9a2.1 2.1 0 0 0 4.2 0V13" fill="none" stroke="${c2}" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M19.7 13v12.6" stroke="${c2}" stroke-width="1.9" stroke-linecap="round"/>
+    <path d="M26.6 13c-1.9 3.2-1.5 6.3.7 7.5v5.1" fill="none" stroke="${c2}" stroke-width="1.9" stroke-linecap="round"/>
+    ${badge}</svg>`;
 }
+
+function markerImage(visited) {
+  return new kakao.maps.MarkerImage(
+    'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(pinSvg(visited, 44, 54)),
+    new kakao.maps.Size(44, 54), { offset: new kakao.maps.Point(22, 48) });
+}
+
+document.querySelectorAll('#legend .lg-pin').forEach(el =>
+  el.innerHTML = pinSvg(el.dataset.visited === '1', 16, 20));
 
 function render() {
   markers.forEach(m => m.setMap(null));
