@@ -42,6 +42,32 @@
     padding: 8px 12px; border-radius: 999px;
   }
 
+  /* 현재위치 버튼 */
+  #locBtn {
+    position: absolute; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 84px); z-index: 10;
+    width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--line); background: #fff;
+    font-size: 20px; box-shadow: 0 4px 14px rgba(0,0,0,.18); cursor: pointer; color: #2563eb;
+  }
+  #locBtn.locating { animation: locPulse 1s ease-in-out infinite; }
+  @keyframes locPulse { 50% { opacity: .4; } }
+
+  /* 내 위치 파란 점 */
+  .my-dot { position: relative; width: 18px; height: 18px; }
+  .my-dot .core {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: #2563eb; border: 3px solid #fff; box-shadow: 0 1px 6px rgba(0,0,0,.35);
+  }
+  .my-dot .pulse {
+    position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; border-radius: 50%;
+    background: rgba(37,99,235,.35); transform: translate(-50%,-50%);
+    animation: dotPulse 2s ease-out infinite;
+  }
+  @keyframes dotPulse {
+    0% { width: 18px; height: 18px; opacity: 1; }
+    100% { width: 64px; height: 64px; opacity: 0; }
+  }
+  .li-dist { color: #2563eb; font-weight: 700; }
+
   /* 바텀시트 (상세/리스트 공용) */
   .sheet {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -97,6 +123,7 @@
 </div>
 
 <div id="countBadge">0곳</div>
+<button id="locBtn" title="현재 위치">🧭</button>
 <button id="listBtn" title="목록">☰</button>
 
 <div class="sheet" id="detailSheet">
@@ -114,6 +141,16 @@
 const DATA = (typeof MATJIP_DATA !== 'undefined') ? MATJIP_DATA : { places: [] };
 const state = { region: '전체', cat: '전체', visited: '전체' };
 let map, markers = [], overlay = null;
+let myLoc = null, myDot = null, myCircle = null, watchId = null;
+
+function haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*rad) * Math.cos(lat2*rad) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+const fmtDist = m => m == null ? '' : (m < 1000 ? Math.round(m) + 'm' : (m/1000).toFixed(m < 10000 ? 1 : 0) + 'km');
+const distTo = p => (myLoc && p.lat && p.lon) ? haversine(myLoc.lat, myLoc.lon, p.lat, p.lon) : null;
 
 const CAT_EMOJI = { '한식':'🍚','일식':'🍣','중식':'🥟','양식':'🍝','카페':'☕','분식':'🍢','고기':'🥩','치킨':'🍗','술집':'🍺','디저트':'🍰','아시안':'🍜','멕시칸':'🌮','패스트푸드':'🍔' };
 const emoji = c => CAT_EMOJI[c] || '📍';
@@ -148,6 +185,52 @@ function buildChips() {
   };
   mk(document.getElementById('regionChips'), regions, 'region');
   mk(document.getElementById('catChips'), cats, 'cat', ['가봄', '안가봄']);
+}
+
+function showMyLoc(lat, lon, accuracy) {
+  const pos = new kakao.maps.LatLng(lat, lon);
+  if (!myDot) {
+    myDot = new kakao.maps.CustomOverlay({
+      map, position: pos, zIndex: 5,
+      content: '<div class="my-dot"><div class="pulse"></div><div class="core"></div></div>'
+    });
+    myCircle = new kakao.maps.Circle({
+      map, center: pos, radius: accuracy || 0,
+      strokeWeight: 1, strokeColor: '#2563eb', strokeOpacity: .3,
+      fillColor: '#2563eb', fillOpacity: .08
+    });
+  } else {
+    myDot.setPosition(pos);
+    myCircle.setPosition(pos);
+    myCircle.setRadius(accuracy || 0);
+  }
+}
+
+function locate(pan) {
+  if (!navigator.geolocation) { if (pan) alert('이 브라우저는 위치 정보를 지원하지 않아요.'); return; }
+  const btn = document.getElementById('locBtn');
+  btn.classList.add('locating');
+  navigator.geolocation.getCurrentPosition(pos => {
+    btn.classList.remove('locating');
+    myLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    showMyLoc(myLoc.lat, myLoc.lon, pos.coords.accuracy);
+    if (pan) {
+      map.setLevel(5);
+      map.panTo(new kakao.maps.LatLng(myLoc.lat, myLoc.lon));
+    }
+    if (document.getElementById('listSheet').classList.contains('open')) openList();
+    if (watchId == null) {
+      watchId = navigator.geolocation.watchPosition(p => {
+        myLoc = { lat: p.coords.latitude, lon: p.coords.longitude };
+        showMyLoc(myLoc.lat, myLoc.lon, p.coords.accuracy);
+      }, () => {}, { enableHighAccuracy: true, maximumAge: 15000 });
+    }
+  }, err => {
+    btn.classList.remove('locating');
+    if (pan) alert(err.code === 1
+      ? '위치 권한이 꺼져 있어요. 브라우저 설정에서 위치 접근을 허용해주세요.'
+      : '현재 위치를 가져오지 못했어요.');
+  }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 });
 }
 
 function closeSheets() {
@@ -186,6 +269,7 @@ function detailHTML(p) {
     ${menus ? `<div class="p-sec"><h4>메뉴</h4>${menus}</div>` : ''}
     ${reviews ? `<div class="p-sec"><h4>리뷰</h4>${reviews}</div>` : ''}
     <div class="p-sec">
+      ${distTo(p) != null ? `<div class="meta-line">🧭 내 위치에서 <b style="color:#2563eb">${fmtDist(distTo(p))}</b></div>` : ''}
       ${p.address || p.road_address ? `<div class="meta-line">📍 ${esc(p.road_address || p.address)}</div>` : ''}
       ${p.phone ? `<div class="meta-line">📞 <a href="tel:${esc(p.phone)}" style="color:inherit">${esc(p.phone)}</a></div>` : ''}
       ${p.hours ? `<div class="meta-line">🕐 ${esc(p.hours)}</div>` : ''}
@@ -203,20 +287,22 @@ function openDetail(p) {
 
 function openList() {
   closeSheets();
-  const list = filtered();
+  const list = filtered().map(p => ({ p, d: distTo(p) }));
+  if (myLoc) list.sort((a, b) => (a.d ?? Infinity) - (b.d ?? Infinity));
   const body = document.getElementById('listBody');
   body.innerHTML = list.length === 0
     ? `<div class="empty">조건에 맞는 맛집이 없어요.<br>텔레그램 봇에 가게 이름이나 링크를 던져보세요 🍜</div>`
-    : list.map((p, i) => `
+    : (myLoc ? '<div style="font-size:12px;color:var(--muted);font-weight:700;padding:6px 2px 2px">📍 내 위치에서 가까운 순</div>' : '') +
+      list.map(({ p, d }, i) => `
       <div class="li-item" data-i="${i}">
         <div class="li-l">
           <div class="nm">${emoji(p.category)} ${esc(p.name)} ${p.visited ? '' : '🔖'}</div>
-          <div class="sub">${[p.region, p.category].filter(Boolean).map(esc).join(' · ')}</div>
+          <div class="sub">${[d != null ? `<span class="li-dist">${fmtDist(d)}</span>` : '', esc(p.region || ''), esc(p.category || '')].filter(Boolean).join(' · ')}</div>
         </div>
         <div class="li-r">${p.my_rating ? stars(p.my_rating) : ''}</div>
       </div>`).join('');
   body.querySelectorAll('.li-item').forEach(el =>
-    el.onclick = () => openDetail(list[+el.dataset.i]));
+    el.onclick = () => openDetail(list[+el.dataset.i].p));
   document.getElementById('listSheet').classList.add('open');
 }
 
@@ -253,8 +339,10 @@ kakao.maps.load(() => {
   });
   kakao.maps.event.addListener(map, 'click', closeSheets);
   document.getElementById('listBtn').onclick = openList;
+  document.getElementById('locBtn').onclick = () => locate(true);
   buildChips();
   render();
+  locate(DATA.places.length === 0);
 });
 </script>
 </body>
