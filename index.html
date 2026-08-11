@@ -137,9 +137,26 @@
 </div>
 
 <script>document.write('<script src="data.js?v=' + Date.now() + '"><\/script>');</script>
+<script>document.write('<script src="api.js?v=' + Date.now() + '"><\/script>');</script>
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d276677bb09f327f4697fd57e1ad708a&autoload=false"></script>
 <script>
-const DATA = (typeof MATJIP_DATA !== 'undefined') ? MATJIP_DATA : { places: [] };
+let DATA = (typeof MATJIP_DATA !== 'undefined') ? MATJIP_DATA : { places: [] };
+let LIVE = false;
+
+// 실시간 API 우선, 실패하면 정적 data.js 그대로 사용
+function loadLive() {
+  if (typeof MATJIP_API === 'undefined' || !MATJIP_API) return;
+  fetch(MATJIP_API + '/places', { signal: AbortSignal.timeout(6000) })
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(j => {
+      if (!j || !Array.isArray(j.places)) throw new Error('bad payload');
+      DATA = j;
+      LIVE = true;
+      buildChips();
+      render();
+    })
+    .catch(() => {});
+}
 const state = { region: '전체', cat: '전체', src: '전체', visited: '전체' };
 let map, markers = [], overlay = null;
 let myLoc = null, myDot = null, myCircle = null, watchId = null;
@@ -329,7 +346,7 @@ function render() {
   markers.forEach(m => m.setMap(null));
   markers = [];
   const list = filtered().filter(p => p.lat && p.lon);
-  document.getElementById('countBadge').textContent = `${list.length}곳`;
+  document.getElementById('countBadge').textContent = `${list.length}곳${LIVE ? ' ⚡' : ''}`;
 
   const bounds = new kakao.maps.LatLngBounds();
   list.forEach(p => {
@@ -352,6 +369,8 @@ kakao.maps.load(() => {
   buildChips();
   render();
   locate(DATA.places.length === 0);
+  loadLive();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadLive(); });
 });
 </script>
 </body>
