@@ -188,8 +188,8 @@ function buildChips() {
       el.appendChild(b);
     });
   };
-  mk(document.getElementById('regionChips'), regions, 'region');
-  mk(document.getElementById('catChips'), cats, 'cat', ['가봄', '안가봄']);
+  mk(document.getElementById('regionChips'), regions, 'region', [], v => v === '전체' ? '📍 지역 전체' : v);
+  mk(document.getElementById('catChips'), cats, 'cat', ['가봄', '안가봄'], v => v === '전체' ? '🍽 장르 전체' : v);
   const srcEl = document.getElementById('srcChips');
   srcEl.style.display = srcs.length > 1 ? '' : 'none';
   mk(srcEl, srcs, 'src', [], v => v === '전체' ? '출처 전체' : srcLabel(v));
