@@ -136,7 +136,7 @@
   <div class="sheet-body" id="listBody"></div>
 </div>
 
-<script src="data.js"></script>
+<script>document.write('<script src="data.js?v=' + Date.now() + '"><\/script>');</script>
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d276677bb09f327f4697fd57e1ad708a&autoload=false"></script>
 <script>
 const DATA = (typeof MATJIP_DATA !== 'undefined') ? MATJIP_DATA : { places: [] };
