@@ -29,6 +29,15 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.08); white-space: nowrap;
   }
   .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip .caret { font-size: 10px; opacity: .65; margin-left: 2px; }
+
+  /* 필터 드롭다운 패널 */
+  #ddPanel {
+    display: none; margin-top: 6px; padding: 10px; pointer-events: auto;
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.14); max-height: 40vh; overflow-y: auto;
+  }
+  #ddPanel.open { display: flex; flex-wrap: wrap; gap: 6px; }
 
   /* 리스트 토글 버튼 */
   #listBtn {
@@ -118,9 +127,8 @@
 <div id="map"></div>
 
 <div id="topbar">
-  <div class="chip-row" id="regionChips"></div>
-  <div class="chip-row" id="catChips" style="margin-top:6px"></div>
-  <div class="chip-row" id="srcChips" style="margin-top:6px"></div>
+  <div class="chip-row" id="filterBar"></div>
+  <div id="ddPanel"></div>
 </div>
 
 <div id="countBadge">0곳</div>
@@ -187,29 +195,49 @@ function filtered() {
   );
 }
 
+let ddOpen = null;
+
 function buildChips() {
-  const regions = ['전체', ...new Set(DATA.places.map(p => p.region).filter(Boolean))];
-  const cats = ['전체', ...new Set(DATA.places.map(p => p.category).filter(Boolean))];
-  const srcs = ['전체', ...new Set(DATA.places.map(p => p.source).filter(Boolean))];
-  const mk = (el, items, key, extra = [], label = null) => {
-    el.innerHTML = '';
-    [...items, ...extra].forEach(v => {
-      const b = document.createElement('button');
-      b.className = 'chip' + ((state[key] === v || (key === 'cat' && state.visited === v)) ? ' on' : '');
-      b.textContent = label ? label(v) : v;
-      b.onclick = () => {
-        if (v === '가봄' || v === '안가봄') { state.visited = state.visited === v ? '전체' : v; }
-        else state[key] = v;
-        buildChips(); render();
-      };
-      el.appendChild(b);
-    });
-  };
-  mk(document.getElementById('regionChips'), regions, 'region', [], v => v === '전체' ? '📍 지역 전체' : v);
-  mk(document.getElementById('catChips'), cats, 'cat', ['가봄', '안가봄'], v => v === '전체' ? '🍽 장르 전체' : v);
-  const srcEl = document.getElementById('srcChips');
-  srcEl.style.display = srcs.length > 1 ? '' : 'none';
-  mk(srcEl, srcs, 'src', [], v => v === '전체' ? '출처 전체' : srcLabel(v));
+  const uniq = k => [...new Set(DATA.places.map(p => p[k]).filter(Boolean))];
+  const defs = [
+    { key: 'region', label: '📍 지역', opts: ['전체', ...uniq('region')], fmt: v => v },
+    { key: 'cat', label: '🍽 장르', opts: ['전체', ...uniq('category')], fmt: v => v },
+    { key: 'visited', label: '✅ 방문', opts: ['전체', '가봄', '안가봄'],
+      fmt: v => v === '가봄' ? '✅ 가봄' : v === '안가봄' ? '🔖 안가봄' : v },
+    { key: 'src', label: '🔗 출처', opts: ['전체', ...uniq('source')],
+      fmt: v => v === '전체' ? v : srcLabel(v), hidden: uniq('source').length < 2 },
+  ].filter(d => !d.hidden);
+
+  const bar = document.getElementById('filterBar');
+  bar.innerHTML = '';
+  defs.forEach(d => {
+    const on = state[d.key] !== '전체';
+    const b = document.createElement('button');
+    b.className = 'chip' + (on ? ' on' : '');
+    b.innerHTML = esc(on ? d.fmt(state[d.key]) : d.label) + '<span class="caret"> ▾</span>';
+    b.onclick = () => { ddOpen = ddOpen === d.key ? null : d.key; buildChips(); };
+    bar.appendChild(b);
+  });
+  if (defs.some(d => state[d.key] !== '전체')) {
+    const r = document.createElement('button');
+    r.className = 'chip';
+    r.textContent = '↺ 초기화';
+    r.onclick = () => { defs.forEach(d => state[d.key] = '전체'); ddOpen = null; buildChips(); render(); };
+    bar.appendChild(r);
+  }
+
+  const panel = document.getElementById('ddPanel');
+  const d = defs.find(x => x.key === ddOpen);
+  panel.innerHTML = '';
+  if (!d) { panel.classList.remove('open'); return; }
+  d.opts.forEach(v => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (state[d.key] === v ? ' on' : '');
+    b.textContent = d.fmt(v);
+    b.onclick = () => { state[d.key] = v; ddOpen = null; buildChips(); render(); };
+    panel.appendChild(b);
+  });
+  panel.classList.add('open');
 }
 
 function showMyLoc(lat, lon, accuracy) {
@@ -261,6 +289,7 @@ function locate(pan) {
 function closeSheets() {
   document.getElementById('detailSheet').classList.remove('open');
   document.getElementById('listSheet').classList.remove('open');
+  if (ddOpen) { ddOpen = null; buildChips(); }
 }
 
 function detailHTML(p) {
