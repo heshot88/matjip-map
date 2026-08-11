@@ -94,6 +94,15 @@
     transform: translateY(105%); transition: transform .28s cubic-bezier(.32,.72,.32,1);
   }
   .sheet.open { transform: translateY(0); }
+  #detailSheet.expanded { max-height: 86%; }
+  #detailSheet:not(.expanded) .sheet-body { overflow: hidden; }
+  #detailSheet .detail-more { display: none; }
+  #detailSheet.expanded .detail-more { display: block; }
+  #expandHint {
+    margin-top: 14px; padding: 9px; text-align: center; font-size: 12.5px; font-weight: 700;
+    color: var(--muted); background: var(--chip-bg); border-radius: 10px;
+  }
+  #detailSheet.expanded #expandHint { display: none; }
   .sheet-grab { padding: 10px 0 4px; text-align: center; flex: 0 0 auto; }
   .sheet-grab::before { content: ""; display: inline-block; width: 40px; height: 4px; border-radius: 2px; background: #d1d5db; }
   .sheet-body { overflow-y: auto; padding: 4px 18px calc(env(safe-area-inset-bottom) + 20px); -webkit-overflow-scrolling: touch; }
@@ -336,24 +345,54 @@ function detailHTML(p) {
       ${(p.tags || []).map(t => `<span class="badge">#${esc(t)}</span>`).join('')}
     </div>
     ${p.my_comment ? `<div class="p-sec"><h4>내 코멘트</h4><div class="comment-box">${esc(p.my_comment)}</div></div>` : ''}
-    ${menus ? `<div class="p-sec"><h4>메뉴</h4>${menus}</div>` : ''}
-    ${reviews ? `<div class="p-sec"><h4>리뷰</h4>${reviews}</div>` : ''}
     <div class="p-sec">
       ${distTo(p) != null ? `<div class="meta-line">🧭 내 위치에서 <b style="color:#2563eb">${fmtDist(distTo(p))}</b></div>` : ''}
       ${p.address || p.road_address ? `<div class="meta-line">📍 ${esc(p.road_address || p.address)}</div>` : ''}
       ${p.phone ? `<div class="meta-line">📞 <a href="tel:${esc(p.phone)}" style="color:inherit">${esc(p.phone)}</a></div>` : ''}
       ${p.hours ? `<div class="meta-line">🕐 ${esc(p.hours)}</div>` : ''}
     </div>
-    <div class="p-sec link-row">${links.join('')}</div>`;
+    <div class="p-sec link-row">${links.join('')}</div>
+    ${menus || reviews ? `<div id="expandHint">👆 탭하거나 위로 스와이프 — 메뉴·리뷰 보기</div>` : ''}
+    <div class="detail-more">
+      ${menus ? `<div class="p-sec"><h4>메뉴</h4>${menus}</div>` : ''}
+      ${reviews ? `<div class="p-sec"><h4>리뷰</h4>${reviews}</div>` : ''}
+    </div>`;
 }
 
 function openDetail(p) {
   closeSheets();
+  const sheet = document.getElementById('detailSheet');
+  sheet.classList.remove('expanded');
   document.getElementById('detailBody').innerHTML = detailHTML(p);
   document.getElementById('detailBody').scrollTop = 0;
-  document.getElementById('detailSheet').classList.add('open');
+  sheet.classList.add('open');
   map.panTo(new kakao.maps.LatLng(p.lat, p.lon));
 }
+
+const dSheet = document.getElementById('detailSheet');
+const dBody = document.getElementById('detailBody');
+function expandDetail() { dSheet.classList.add('expanded'); }
+function collapseDetail() { dSheet.classList.remove('expanded'); dBody.scrollTop = 0; }
+dSheet.addEventListener('click', e => {
+  if (e.target.closest('a')) return;
+  if (dSheet.classList.contains('expanded')) {
+    if (e.target.closest('.sheet-grab')) collapseDetail();
+  } else expandDetail();
+});
+let tY = null, tScroll = 0;
+dSheet.addEventListener('touchstart', e => {
+  tY = e.touches[0].clientY; tScroll = dBody.scrollTop;
+}, { passive: true });
+dSheet.addEventListener('touchend', e => {
+  if (tY == null) return;
+  const dy = e.changedTouches[0].clientY - tY;
+  tY = null;
+  if (dy < -40 && !dSheet.classList.contains('expanded')) expandDetail();
+  else if (dy > 40) {
+    if (!dSheet.classList.contains('expanded')) closeSheets();
+    else if (tScroll <= 0 && dBody.scrollTop <= 0) collapseDetail();
+  }
+}, { passive: true });
 
 function openList() {
   closeSheets();
