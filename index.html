@@ -50,6 +50,14 @@
     background: rgba(26,26,26,.82); color: #fff; font-size: 12px; font-weight: 600;
     padding: 8px 12px; border-radius: 999px;
   }
+  #legend {
+    position: absolute; left: 12px; bottom: calc(env(safe-area-inset-bottom) + 58px); z-index: 10;
+    background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 10px;
+    padding: 6px 10px; font-size: 11.5px; display: flex; flex-direction: column; gap: 3px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.1);
+  }
+  #legend .lg-row { display: flex; align-items: center; gap: 6px; }
+  #legend svg { flex: none; }
 
   /* 현재위치 버튼 */
   #locBtn {
@@ -132,6 +140,10 @@
 </div>
 
 <div id="countBadge">0곳</div>
+<div id="legend">
+  <div class="lg-row"><svg width="15" height="19" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.1 1 16.8 1 28.9 17 43 17 43s16-14.1 16-26.2C33 8.1 25.8 1 17 1z" fill="#2563eb" stroke="#fff" stroke-width="2"/><circle cx="17" cy="16.5" r="8.5" fill="#fff"/><path d="M12.5 16.8l3.2 3.2 6-6.5" fill="none" stroke="#2563eb" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg> 가봄</div>
+  <div class="lg-row"><svg width="15" height="19" viewBox="0 0 34 44"><path d="M17 1C8.2 1 1 8.1 1 16.8 1 28.9 17 43 17 43s16-14.1 16-26.2C33 8.1 25.8 1 17 1z" fill="#ff6b35" stroke="#fff" stroke-width="2"/><circle cx="17" cy="16.5" r="8.5" fill="#fff"/><circle cx="17" cy="16.5" r="4" fill="none" stroke="#ff6b35" stroke-width="2.5"/></svg> 안가봄</div>
+</div>
 <button id="locBtn" title="현재 위치">🧭</button>
 <button id="listBtn" title="목록">☰</button>
 
@@ -363,9 +375,14 @@ function openList() {
 
 function markerImage(visited) {
   const color = visited ? '#2563eb' : '#ff6b35';
+  const inner = visited
+    ? `<circle cx="17" cy="16.5" r="8.5" fill="#fff"/>
+       <path d="M12.5 16.8l3.2 3.2 6-6.5" fill="none" stroke="${color}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`
+    : `<circle cx="17" cy="16.5" r="8.5" fill="#fff"/>
+       <circle cx="17" cy="16.5" r="4" fill="none" stroke="${color}" stroke-width="2.5"/>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
     <path d="M17 1C8.2 1 1 8.1 1 16.8 1 28.9 17 43 17 43s16-14.1 16-26.2C33 8.1 25.8 1 17 1z" fill="${color}" stroke="#fff" stroke-width="2"/>
-    <circle cx="17" cy="16.5" r="6" fill="#fff"/></svg>`;
+    ${inner}</svg>`;
   return new kakao.maps.MarkerImage(
     'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg),
     new kakao.maps.Size(34, 44), { offset: new kakao.maps.Point(17, 43) });
