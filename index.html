@@ -120,6 +120,7 @@
 <div id="topbar">
   <div class="chip-row" id="regionChips"></div>
   <div class="chip-row" id="catChips" style="margin-top:6px"></div>
+  <div class="chip-row" id="srcChips" style="margin-top:6px"></div>
 </div>
 
 <div id="countBadge">0곳</div>
@@ -139,7 +140,7 @@
 <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=d276677bb09f327f4697fd57e1ad708a&autoload=false"></script>
 <script>
 const DATA = (typeof MATJIP_DATA !== 'undefined') ? MATJIP_DATA : { places: [] };
-const state = { region: '전체', cat: '전체', visited: '전체' };
+const state = { region: '전체', cat: '전체', src: '전체', visited: '전체' };
 let map, markers = [], overlay = null;
 let myLoc = null, myDot = null, myCircle = null, watchId = null;
 
@@ -154,6 +155,8 @@ const distTo = p => (myLoc && p.lat && p.lon) ? haversine(myLoc.lat, myLoc.lon, 
 
 const CAT_EMOJI = { '한식':'🍚','일식':'🍣','중식':'🥟','양식':'🍝','카페':'☕','분식':'🍢','고기':'🥩','치킨':'🍗','술집':'🍺','디저트':'🍰','아시안':'🍜','멕시칸':'🌮','패스트푸드':'🍔' };
 const emoji = c => CAT_EMOJI[c] || '📍';
+const SRC_EMOJI = { '유튜브':'▶️','블로그':'✍️','인스타':'📸','카카오맵':'🗺️','네이버':'🟢','직접입력':'💬' };
+const srcLabel = s => s ? (SRC_EMOJI[s] || '🔗') + ' ' + s : '';
 const won = n => n == null ? '' : Number(n).toLocaleString('ko-KR') + '원';
 const stars = r => r == null ? '' : '★' + Number(r).toFixed(1);
 const esc = s => (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -162,6 +165,7 @@ function filtered() {
   return DATA.places.filter(p =>
     (state.region === '전체' || p.region === state.region) &&
     (state.cat === '전체' || p.category === state.cat) &&
+    (state.src === '전체' || p.source === state.src) &&
     (state.visited === '전체' || (state.visited === '가봄' ? p.visited : !p.visited))
   );
 }
@@ -169,12 +173,13 @@ function filtered() {
 function buildChips() {
   const regions = ['전체', ...new Set(DATA.places.map(p => p.region).filter(Boolean))];
   const cats = ['전체', ...new Set(DATA.places.map(p => p.category).filter(Boolean))];
-  const mk = (el, items, key, extra = []) => {
+  const srcs = ['전체', ...new Set(DATA.places.map(p => p.source).filter(Boolean))];
+  const mk = (el, items, key, extra = [], label = null) => {
     el.innerHTML = '';
     [...items, ...extra].forEach(v => {
       const b = document.createElement('button');
       b.className = 'chip' + ((state[key] === v || (key === 'cat' && state.visited === v)) ? ' on' : '');
-      b.textContent = v;
+      b.textContent = label ? label(v) : v;
       b.onclick = () => {
         if (v === '가봄' || v === '안가봄') { state.visited = state.visited === v ? '전체' : v; }
         else state[key] = v;
@@ -185,6 +190,9 @@ function buildChips() {
   };
   mk(document.getElementById('regionChips'), regions, 'region');
   mk(document.getElementById('catChips'), cats, 'cat', ['가봄', '안가봄']);
+  const srcEl = document.getElementById('srcChips');
+  srcEl.style.display = srcs.length > 1 ? '' : 'none';
+  mk(srcEl, srcs, 'src', [], v => v === '전체' ? '출처 전체' : srcLabel(v));
 }
 
 function showMyLoc(lat, lon, accuracy) {
@@ -261,6 +269,7 @@ function detailHTML(p) {
     </div>
     <div class="p-badges">
       ${p.region ? `<span class="badge">${esc(p.region)}</span>` : ''}
+      ${p.source ? `<span class="badge">${esc(srcLabel(p.source))}</span>` : ''}
       <span class="badge ${p.visited ? '' : 'hot'}">${p.visited ? '✅ 가봄' : '🔖 가볼 곳'}</span>
       ${p.revisit ? '<span class="badge hot">🔁 재방문각</span>' : ''}
       ${(p.tags || []).map(t => `<span class="badge">#${esc(t)}</span>`).join('')}
@@ -297,7 +306,7 @@ function openList() {
       <div class="li-item" data-i="${i}">
         <div class="li-l">
           <div class="nm">${emoji(p.category)} ${esc(p.name)} ${p.visited ? '' : '🔖'}</div>
-          <div class="sub">${[d != null ? `<span class="li-dist">${fmtDist(d)}</span>` : '', esc(p.region || ''), esc(p.category || '')].filter(Boolean).join(' · ')}</div>
+          <div class="sub">${[d != null ? `<span class="li-dist">${fmtDist(d)}</span>` : '', esc(p.region || ''), esc(p.category || ''), esc(srcLabel(p.source || ''))].filter(Boolean).join(' · ')}</div>
         </div>
         <div class="li-r">${p.my_rating ? stars(p.my_rating) : ''}</div>
       </div>`).join('');
