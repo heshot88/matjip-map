@@ -113,11 +113,11 @@
   .p-cat { font-size: 13px; color: var(--muted); font-weight: 600; }
   .p-stars { color: #f59e0b; font-size: 14px; font-weight: 700; }
   .p-badges { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
-  .ext-rating { margin-top: 9px; font-size: 13px; font-weight: 700; color: #f59e0b; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
-  .ext-rating a { color: #f59e0b; text-decoration: none; }
+  .ext-rating { margin-top: 9px; font-size: 13px; font-weight: 700; color: #f59e0b; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; line-height: 1; }
+  .ext-rating a, .ext-rating .ext-item { color: #f59e0b; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
   .ext-rating .ext-cnt { color: var(--muted); font-weight: 400; font-size: 12px; }
   .ext-rating .ext-sep { color: var(--muted); margin: 0 7px; font-weight: 400; }
-  .ext-src { font-size: 10px; font-weight: 800; color: #fff; border-radius: 4px; padding: 2px 5px; vertical-align: 1px; margin-right: 2px; }
+  .ext-src { font-size: 10px; font-weight: 800; color: #fff; border-radius: 4px; padding: 3px 5px; line-height: 1; }
   .ext-src.kko { background: #fbbf24; color: #3d2b00; }
   .ext-src.nv { background: #22c55e; }
   .ext-rating a:has(.nv) { color: #16a34a; }
@@ -225,7 +225,7 @@ function extRating(p) {
   }
   if (p.naver_review_count) {
     const inner = `<span class="ext-src nv">네이버</span> 리뷰 ${p.naver_review_count}`;
-    parts.push(p.naver_url ? `<a href="${esc(p.naver_url)}" target="_blank" rel="noopener">${inner}</a>` : `<span>${inner}</span>`);
+    parts.push(p.naver_url ? `<a href="${esc(p.naver_url)}" target="_blank" rel="noopener">${inner}</a>` : `<span class="ext-item">${inner}</span>`);
   }
   return parts.length ? `<div class="ext-rating">${parts.join('<span class="ext-sep">·</span>')}</div>` : '';
 }
