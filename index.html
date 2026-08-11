@@ -113,6 +113,14 @@
   .p-cat { font-size: 13px; color: var(--muted); font-weight: 600; }
   .p-stars { color: #f59e0b; font-size: 14px; font-weight: 700; }
   .p-badges { display: flex; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  .ext-rating { margin-top: 9px; font-size: 13px; font-weight: 700; color: #f59e0b; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+  .ext-rating a { color: #f59e0b; text-decoration: none; }
+  .ext-rating .ext-cnt { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .ext-rating .ext-sep { color: var(--muted); margin: 0 7px; font-weight: 400; }
+  .ext-src { font-size: 10px; font-weight: 800; color: #fff; border-radius: 4px; padding: 2px 5px; vertical-align: 1px; margin-right: 2px; }
+  .ext-src.kko { background: #fbbf24; color: #3d2b00; }
+  .ext-src.nv { background: #22c55e; }
+  .ext-rating a:has(.nv) { color: #16a34a; }
   .badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--chip-bg); color: #374151; }
   .badge.hot { background: #fff1eb; color: var(--accent); }
   .p-sec { margin-top: 14px; }
@@ -208,6 +216,19 @@ const SRC_EMOJI = { '유튜브':'▶️','블로그':'✍️','인스타':'📸'
 const srcLabel = s => s ? (SRC_EMOJI[s] || '🔗') + ' ' + s : '';
 const won = n => n == null ? '' : Number(n).toLocaleString('ko-KR') + '원';
 const stars = r => r == null ? '' : '★' + Number(r).toFixed(1);
+// 카카오 평점 + 네이버 리뷰수 줄 (네이버는 2021년 별점 폐지 → 리뷰 수만 존재)
+function extRating(p) {
+  const parts = [];
+  if (p.kakao_rating != null) {
+    const cnt = p.kakao_review_count ? ` <span class="ext-cnt">(${p.kakao_review_count})</span>` : '';
+    parts.push(`<a href="https://place.map.kakao.com/${p.kakao_id}" target="_blank" rel="noopener"><span class="ext-src kko">카카오</span> ★${Number(p.kakao_rating).toFixed(1)}${cnt}</a>`);
+  }
+  if (p.naver_review_count) {
+    const inner = `<span class="ext-src nv">네이버</span> 리뷰 ${p.naver_review_count}`;
+    parts.push(p.naver_url ? `<a href="${esc(p.naver_url)}" target="_blank" rel="noopener">${inner}</a>` : `<span>${inner}</span>`);
+  }
+  return parts.length ? `<div class="ext-rating">${parts.join('<span class="ext-sep">·</span>')}</div>` : '';
+}
 const esc = s => (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
 function filtered() {
@@ -344,6 +365,7 @@ function detailHTML(p) {
       ${p.revisit ? '<span class="badge hot">🔁 재방문각</span>' : ''}
       ${(p.tags || []).map(t => `<span class="badge">#${esc(t)}</span>`).join('')}
     </div>
+    ${extRating(p)}
     ${p.my_comment ? `<div class="p-sec"><h4>내 코멘트</h4><div class="comment-box">${esc(p.my_comment)}</div></div>` : ''}
     <div class="p-sec">
       ${distTo(p) != null ? `<div class="meta-line">🧭 내 위치에서 <b style="color:#2563eb">${fmtDist(distTo(p))}</b></div>` : ''}
@@ -406,7 +428,7 @@ function openList() {
       <div class="li-item" data-i="${i}">
         <div class="li-l">
           <div class="nm">${emoji(p.category)} ${esc(p.name)} ${p.visited ? '' : '🔖'}</div>
-          <div class="sub">${[d != null ? `<span class="li-dist">${fmtDist(d)}</span>` : '', esc(p.region || ''), esc(p.category || ''), esc(srcLabel(p.source || ''))].filter(Boolean).join(' · ')}</div>
+          <div class="sub">${[d != null ? `<span class="li-dist">${fmtDist(d)}</span>` : '', esc(p.region || ''), esc(p.category || ''), esc(srcLabel(p.source || '')), p.kakao_rating != null ? `<span style="color:#f59e0b;font-weight:700">카카오★${Number(p.kakao_rating).toFixed(1)}</span>` : ''].filter(Boolean).join(' · ')}</div>
         </div>
         <div class="li-r">${p.my_rating ? stars(p.my_rating) : ''}</div>
       </div>`).join('');
