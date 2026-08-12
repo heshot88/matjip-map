@@ -1,1 +1,1 @@
-const MATJIP_API = 'https://regard-municipality-technological-publications.trycloudflare.com';
+const MATJIP_API = 'https://remain-bacteria-formation-smooth.trycloudflare.com';
