@@ -1,1 +1,1 @@
-const MATJIP_API = 'https://day-resolved-rugby-delicious.trycloudflare.com';
+const MATJIP_API = 'https://sweet-oils-cocktail-internship.trycloudflare.com';
